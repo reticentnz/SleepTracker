@@ -61,6 +61,33 @@ export async function ensureSchema() {
       )
     `;
 
+    // Create user_tags table
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_tags (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL,
+        tag text NOT NULL,
+        created_at timestamptz DEFAULT now(),
+        UNIQUE (user_id, tag)
+      )
+    `;
+
+    // Seed default tags if user has none
+    const existingTags = await sql`
+      SELECT COUNT(*)::int as count FROM user_tags WHERE user_id = ${DEFAULT_USER_ID}
+    `;
+    if (existingTags[0].count === 0) {
+      const { DEFAULT_TAGS } = await import('./types');
+      for (const tag of DEFAULT_TAGS) {
+        await sql`
+          INSERT INTO user_tags (user_id, tag)
+          VALUES (${DEFAULT_USER_ID}, ${tag})
+          ON CONFLICT (user_id, tag) DO NOTHING
+        `;
+      }
+      console.log('Seeded default tags into user_tags table.');
+    }
+
     schemaInitialized = true;
     console.log('Database schema verified/created successfully.');
   } catch (error) {

@@ -1,4 +1,4 @@
-import { getSleepLog } from '@/lib/actions';
+import { getSleepLog, getUserTags } from '@/lib/actions';
 import SleepLogForm from './components/SleepLogForm';
 import SetupInstructions from './components/SetupInstructions';
 
@@ -30,6 +30,7 @@ export default async function Home({ searchParams }: PageProps) {
 
   // Retrieve current log for this date
   const initialLog = await getSleepLog(selectedDate);
+  const availableTags = await getUserTags();
 
   return (
     <div className="space-y-6">
@@ -41,7 +42,12 @@ export default async function Home({ searchParams }: PageProps) {
           Spot habits and factors influencing your sleep quality
         </p>
       </div>
-      <SleepLogForm key={selectedDate} selectedDate={selectedDate} initialLog={initialLog} />
+      <SleepLogForm
+        key={selectedDate}
+        selectedDate={selectedDate}
+        initialLog={initialLog}
+        availableTags={availableTags}
+      />
     </div>
   );
 }

@@ -202,6 +202,23 @@ export async function getSleepHistory(): Promise<SleepLog[]> {
 /**
  * Calculate patterns, averages, helpers, and disruptors
  */
+/**
+ * Helper to calculate combined sleep score (out of 5) based on subjective quality and sleep continuity
+ */
+function getCombinedSleepScore(log: SleepLog): number | null {
+  if (log.sleep_quality === null) return null;
+
+  let continuityScore = 5.0;
+  if (log.wake_status === 'once') continuityScore = 3.5;
+  else if (log.wake_status === 'multiple') continuityScore = 2.0;
+  else if (log.wake_status === 'long_awake') continuityScore = 1.0;
+
+  return (log.sleep_quality + continuityScore) / 2;
+}
+
+/**
+ * Calculate patterns, averages, helpers, and disruptors
+ */
 export async function getSleepInsights() {
   const logs = await getSleepHistory();
 
@@ -209,6 +226,11 @@ export async function getSleepInsights() {
   const totalNights = logs.length;
   const avgQuality = logsWithQuality.length > 0
     ? parseFloat((logsWithQuality.reduce((sum, l) => sum + l.sleep_quality!, 0) / logsWithQuality.length).toFixed(2))
+    : null;
+
+  const sleptThroughLogs = logs.filter(l => l.wake_status === 'none');
+  const avgSleptThroughRate = totalNights > 0
+    ? parseFloat(((sleptThroughLogs.length / totalNights) * 100).toFixed(0))
     : null;
 
   // Use unique tags logged + default tags
@@ -221,22 +243,43 @@ export async function getSleepInsights() {
     const withTag = logs.filter(l => l.tags.includes(tag) && l.sleep_quality !== null);
     const withoutTag = logs.filter(l => !l.tags.includes(tag) && l.sleep_quality !== null);
 
+    // Subjective quality calculations
     const withAvg = withTag.length > 0 ? withTag.reduce((sum, l) => sum + l.sleep_quality!, 0) / withTag.length : null;
     const withoutAvg = withoutTag.length > 0 ? withoutTag.reduce((sum, l) => sum + l.sleep_quality!, 0) / withoutTag.length : null;
-
     const difference = withAvg !== null && withoutAvg !== null ? parseFloat((withAvg - withoutAvg).toFixed(2)) : null;
+
+    // Sleep continuity (slept through) calculations
+    const withSleptThroughCount = withTag.filter(l => l.wake_status === 'none').length;
+    const withSleptThroughRate = withTag.length > 0
+      ? parseFloat(((withSleptThroughCount / withTag.length) * 100).toFixed(1))
+      : null;
+
+    const withoutSleptThroughCount = withoutTag.filter(l => l.wake_status === 'none').length;
+    const withoutSleptThroughRate = withoutTag.length > 0
+      ? parseFloat(((withoutSleptThroughCount / withoutTag.length) * 100).toFixed(1))
+      : null;
+
+    const sleptThroughDifference = withSleptThroughRate !== null && withoutSleptThroughRate !== null
+      ? parseFloat((withSleptThroughRate - withoutSleptThroughRate).toFixed(1))
+      : null;
 
     return {
       tag,
       withAverage: withAvg !== null ? parseFloat(withAvg.toFixed(2)) : null,
       withoutAverage: withoutAvg !== null ? parseFloat(withoutAvg.toFixed(2)) : null,
       difference,
+      withSleptThroughRate,
+      withoutSleptThroughRate,
+      sleptThroughDifference,
       sampleSize: withTag.length
     };
   }).filter(insight => insight.sampleSize > 0); // Only return insights for tags that have been tracked at least once
 
-  // Top disruptors: tags associated with poor sleep quality (<= 3)
-  const badSleepLogs = logs.filter(l => l.sleep_quality !== null && l.sleep_quality <= 3);
+  // Top disruptors: tags associated with poor combined sleep score (<= 3.0)
+  const badSleepLogs = logs.filter(l => {
+    const score = getCombinedSleepScore(l);
+    return score !== null && score <= 3.0;
+  });
   const badSleepTagCounts: Record<string, number> = {};
   for (const log of badSleepLogs) {
     for (const tag of log.tags) {
@@ -247,8 +290,11 @@ export async function getSleepInsights() {
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count);
 
-  // Top helpers: tags associated with good sleep quality (>= 4)
-  const goodSleepLogs = logs.filter(l => l.sleep_quality !== null && l.sleep_quality >= 4);
+  // Top helpers: tags associated with good combined sleep score (>= 4.0)
+  const goodSleepLogs = logs.filter(l => {
+    const score = getCombinedSleepScore(l);
+    return score !== null && score >= 4.0;
+  });
   const goodSleepTagCounts: Record<string, number> = {};
   for (const log of goodSleepLogs) {
     for (const tag of log.tags) {
@@ -262,13 +308,88 @@ export async function getSleepInsights() {
   return {
     totalNights,
     avgQuality,
+    avgSleptThroughRate,
     tagInsights: tagInsights.sort((a, b) => {
-      // Sort by absolute size of difference to highlight the strongest correlations first
-      const absA = Math.abs(a.difference || 0);
-      const absB = Math.abs(b.difference || 0);
-      return absB - absA;
+      // Sort by average of normalized absolute differences to highlight overall strong impact
+      const qualityWeightA = Math.abs(a.difference || 0) / 4.0;
+      const continuityWeightA = Math.abs(a.sleptThroughDifference || 0) / 100.0;
+      const scoreA = qualityWeightA + continuityWeightA;
+
+      const qualityWeightB = Math.abs(b.difference || 0) / 4.0;
+      const continuityWeightB = Math.abs(b.sleptThroughDifference || 0) / 100.0;
+      const scoreB = qualityWeightB + continuityWeightB;
+
+      return scoreB - scoreA;
     }),
     topDisruptors,
     topHelpers
   };
 }
+
+/**
+ * Fetch list of custom/default tags for the user
+ */
+export async function getUserTags(): Promise<string[]> {
+  await ensureSchema();
+  const sql = getDbClient();
+
+  try {
+    const rows = await sql`
+      SELECT tag
+      FROM user_tags
+      WHERE user_id = ${DEFAULT_USER_ID}
+      ORDER BY tag ASC
+    `;
+    return rows.map(r => r.tag);
+  } catch (error) {
+    console.error('Error fetching user tags:', error);
+    return DEFAULT_TAGS;
+  }
+}
+
+/**
+ * Add a new customized tag option
+ */
+export async function addUserTag(tag: string) {
+  await ensureSchema();
+  const sql = getDbClient();
+  const trimmed = tag.trim();
+
+  if (!trimmed) {
+    throw new Error('Tag cannot be empty');
+  }
+
+  try {
+    await sql`
+      INSERT INTO user_tags (user_id, tag)
+      VALUES (${DEFAULT_USER_ID}, ${trimmed})
+      ON CONFLICT (user_id, tag) DO NOTHING
+    `;
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding user tag:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a customized tag option
+ */
+export async function deleteUserTag(tag: string) {
+  await ensureSchema();
+  const sql = getDbClient();
+
+  try {
+    await sql`
+      DELETE FROM user_tags
+      WHERE user_id = ${DEFAULT_USER_ID} AND tag = ${tag}
+    `;
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting user tag:', error);
+    throw error;
+  }
+}
+

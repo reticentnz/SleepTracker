@@ -17,6 +17,9 @@ export type TagInsight = {
   withAverage: number | null;
   withoutAverage: number | null;
   difference: number | null;
+  withSleptThroughRate: number | null;
+  withoutSleptThroughRate: number | null;
+  sleptThroughDifference: number | null;
   sampleSize: number;
 };
 

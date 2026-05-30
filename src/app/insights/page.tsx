@@ -19,7 +19,7 @@ export default async function InsightsPage() {
     );
   }
 
-  const { totalNights, avgQuality, tagInsights, topDisruptors, topHelpers } = await getSleepInsights();
+  const { totalNights, avgQuality, avgSleptThroughRate, tagInsights, topDisruptors, topHelpers } = await getSleepInsights();
 
   // If there are logs but no quality ratings or no logs at all
   if (totalNights === 0 || avgQuality === null) {
@@ -68,30 +68,47 @@ export default async function InsightsPage() {
       </div>
 
       {/* Summary Cards Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-2">
         {/* Card 1: Total Logs */}
-        <div className="glass-card p-4 rounded-2xl border border-card-border flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-950/50 border border-indigo-900/30 flex items-center justify-center text-indigo-400 shrink-0">
-            <Activity className="w-5 h-5" />
+        <div className="glass-card p-3 rounded-2xl border border-card-border flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-950/50 border border-indigo-900/30 flex items-center justify-center text-indigo-400 shrink-0">
+            <Activity className="w-4 h-4" />
           </div>
-          <div>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Nights Logged
+          <div className="min-w-0">
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+              Logs
             </span>
-            <span className="text-xl font-bold text-slate-100">{totalNights}</span>
+            <span className="text-base font-bold text-slate-100">{totalNights}</span>
           </div>
         </div>
 
         {/* Card 2: Avg Quality */}
-        <div className="glass-card p-4 rounded-2xl border border-card-border flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-950/40 border border-amber-900/30 flex items-center justify-center text-amber-400 shrink-0">
-            <Star className="w-5 h-5 fill-current" />
+        <div className="glass-card p-3 rounded-2xl border border-card-border flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-amber-950/40 border border-amber-900/30 flex items-center justify-center text-amber-400 shrink-0">
+            <Star className="w-4 h-4 fill-current" />
           </div>
-          <div>
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Average Quality
+          <div className="min-w-0">
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+              Quality
             </span>
-            <span className="text-xl font-bold text-slate-100">{avgQuality} <span className="text-xs text-slate-400 font-normal">/ 5</span></span>
+            <span className="text-base font-bold text-slate-100">
+              {avgQuality} <span className="text-[10px] text-slate-400 font-normal">/5</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Slept Through Rate */}
+        <div className="glass-card p-3 rounded-2xl border border-card-border flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-emerald-950/40 border border-emerald-900/30 flex items-center justify-center text-emerald-400 shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+              Slept Through
+            </span>
+            <span className="text-base font-bold text-slate-100">
+              {avgSleptThroughRate !== null ? `${avgSleptThroughRate}%` : 'N/A'}
+            </span>
           </div>
         </div>
       </div>
@@ -157,70 +174,118 @@ export default async function InsightsPage() {
         ) : (
           <div className="space-y-3">
             {tagInsights.map((insight) => {
-              const diff = insight.difference ?? 0;
-              const isPositive = diff > 0;
-              const isNegative = diff < 0;
-              
-              // Scale visual bar: cap diff at 1.5 for visual scaling
-              const maxScale = 1.5;
-              const barPercent = Math.min((Math.abs(diff) / maxScale) * 100, 100);
+              const qualityDiff = insight.difference ?? 0;
+              const qualityPositive = qualityDiff > 0;
+              const qualityNegative = qualityDiff < 0;
+
+              const continuityDiff = insight.sleptThroughDifference ?? 0;
+              const continuityPositive = continuityDiff > 0;
+              const continuityNegative = continuityDiff < 0;
+
+              // Visual scales:
+              // Cap quality diff at 1.5 for visual rendering
+              const maxQualityScale = 1.5;
+              const qualityBarPercent = Math.min((Math.abs(qualityDiff) / maxQualityScale) * 100, 100);
+
+              // Cap continuity diff at 40% for visual rendering
+              const maxContinuityScale = 40.0;
+              const continuityBarPercent = Math.min((Math.abs(continuityDiff) / maxContinuityScale) * 100, 100);
 
               return (
                 <div
                   key={insight.tag}
-                  className="glass-card p-4 rounded-2xl border border-card-border space-y-3"
+                  className="glass-card p-4 rounded-2xl border border-card-border space-y-4"
                 >
-                  {/* Title and Badge */}
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-semibold text-sm text-slate-200 leading-snug">
+                  {/* Header: Tag Name and Sample Size */}
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-900/40">
+                    <span className="font-semibold text-sm text-slate-200">
                       {insight.tag}
                     </span>
-                    {diff !== 0 && (
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide shrink-0 ${
-                          isPositive
-                            ? 'bg-emerald-950 border border-emerald-500/25 text-emerald-400'
-                            : isNegative
-                            ? 'bg-red-950 border border-red-500/25 text-red-400'
-                            : 'bg-slate-900 border border-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {isPositive ? `+${diff}` : diff} Quality
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Comparisons & Sample size */}
-                  <div className="flex justify-between items-center text-xs text-slate-400">
-                    <div className="flex gap-4">
-                      <span>
-                        With: <strong className="text-slate-200">{insight.withAverage?.toFixed(1) ?? 'N/A'}</strong>
-                      </span>
-                      <span>
-                        Without: <strong className="text-slate-200">{insight.withoutAverage?.toFixed(1) ?? 'N/A'}</strong>
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-medium">
-                      Logged {insight.sampleSize} night{insight.sampleSize > 1 ? 's' : ''}
+                    <span className="text-[10px] text-slate-500 font-medium bg-slate-950/40 px-2 py-0.5 rounded-md border border-slate-900/30">
+                      {insight.sampleSize} night{insight.sampleSize > 1 ? 's' : ''} logged
                     </span>
                   </div>
 
-                  {/* Visual Impact Meter Bar */}
-                  {diff !== 0 && (
-                    <div className="space-y-1">
-                      <div className="h-1.5 w-full bg-slate-950/80 rounded-full overflow-hidden border border-slate-900/50">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            isPositive ? 'bg-emerald-500/80' : 'bg-red-500/80'
-                          }`}
-                          style={{ width: `${barPercent}%` }}
-                        />
+                  {/* Dual Grid: Quality & Continuity */}
+                  <div className="space-y-3.5">
+                    {/* Metric 1: Sleep Quality */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-450 flex items-center gap-1 font-medium">
+                          <Star className="w-3.5 h-3.5 text-amber-450 fill-current" />
+                          <span>Quality Impact</span>
+                        </span>
+                        {qualityDiff !== 0 ? (
+                          <span
+                            className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
+                              qualityPositive
+                                ? 'bg-emerald-950 border border-emerald-500/20 text-emerald-400'
+                                : qualityNegative
+                                ? 'bg-red-950 border border-red-500/20 text-red-400'
+                                : 'bg-slate-900 text-slate-400'
+                            }`}
+                          >
+                            {qualityPositive ? `+${qualityDiff}` : qualityDiff} score
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500">No impact</span>
+                        )}
                       </div>
-                      <span className="text-[9px] text-slate-500 block text-right font-medium">
-                        Impact Strength
-                      </span>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>With: <strong className="text-slate-350">{insight.withAverage?.toFixed(1) ?? 'N/A'}</strong></span>
+                        <span>Without: <strong className="text-slate-350">{insight.withoutAverage?.toFixed(1) ?? 'N/A'}</strong></span>
+                      </div>
+                      {qualityDiff !== 0 && (
+                        <div className="h-1 w-full bg-slate-950 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              qualityPositive ? 'bg-emerald-550/80' : 'bg-red-550/80'
+                            }`}
+                            style={{ width: `${qualityBarPercent}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    {/* Metric 2: Slept Through Continuity */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-450 flex items-center gap-1 font-medium font-sans">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Slept Through Night</span>
+                        </span>
+                        {continuityDiff !== 0 ? (
+                          <span
+                            className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
+                              continuityPositive
+                                ? 'bg-emerald-950 border border-emerald-500/20 text-emerald-400'
+                                : continuityNegative
+                                ? 'bg-red-950 border border-red-500/20 text-red-400'
+                                : 'bg-slate-900 text-slate-400'
+                            }`}
+                          >
+                            {continuityPositive ? `+${continuityDiff.toFixed(0)}%` : `${continuityDiff.toFixed(0)}%`} rate
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500">No impact</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>With: <strong className="text-slate-350">{insight.withSleptThroughRate !== null ? `${insight.withSleptThroughRate.toFixed(0)}%` : 'N/A'}</strong></span>
+                        <span>Without: <strong className="text-slate-350">{insight.withoutSleptThroughRate !== null ? `${insight.withoutSleptThroughRate.toFixed(0)}%` : 'N/A'}</strong></span>
+                      </div>
+                      {continuityDiff !== 0 && (
+                        <div className="h-1 w-full bg-slate-950 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              continuityPositive ? 'bg-emerald-550/80' : 'bg-red-550/80'
+                            }`}
+                            style={{ width: `${continuityBarPercent}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}

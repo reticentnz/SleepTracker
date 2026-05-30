@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SleepLog, WakeStatus, DEFAULT_TAGS } from '@/lib/types';
-import { saveSleepLog } from '@/lib/actions';
-import { Calendar, Clock, Star, Check, Loader2, AlertCircle } from 'lucide-react';
+import { SleepLog, WakeStatus } from '@/lib/types';
+import { saveSleepLog, addUserTag, deleteUserTag } from '@/lib/actions';
+import { Calendar, Clock, Star, Check, Loader2, AlertCircle, Plus, X } from 'lucide-react';
 
 interface SleepLogFormProps {
   selectedDate: string;
   initialLog: SleepLog | null;
+  availableTags: string[];
 }
 
-export default function SleepLogForm({ selectedDate, initialLog }: SleepLogFormProps) {
+export default function SleepLogForm({ selectedDate, initialLog, availableTags }: SleepLogFormProps) {
   const router = useRouter();
 
   const [date, setDate] = useState(selectedDate);
@@ -24,6 +25,53 @@ export default function SleepLogForm({ selectedDate, initialLog }: SleepLogFormP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Custom tags list states
+  const [tagsList, setTagsList] = useState<string[]>(availableTags);
+  const [newTagInput, setNewTagInput] = useState('');
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [deletingTag, setDeletingTag] = useState<string | null>(null);
+
+  const handleAddTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const tagToAdd = newTagInput.trim();
+    if (!tagToAdd) return;
+    if (tagsList.includes(tagToAdd)) {
+      setNewTagInput('');
+      return;
+    }
+    setIsAddingTag(true);
+    setError(null);
+    try {
+      await addUserTag(tagToAdd);
+      setTagsList(prev => [...prev, tagToAdd].sort());
+      setNewTagInput('');
+    } catch (err) {
+      console.error(err);
+      setError('Could not add custom factor.');
+    } finally {
+      setIsAddingTag(false);
+    }
+  };
+
+  const handleDeleteTag = async (tagToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDeletingTag(tagToDelete);
+    setError(null);
+    try {
+      await deleteUserTag(tagToDelete);
+      setTagsList(prev => prev.filter(t => t !== tagToDelete));
+      if (selectedTags.includes(tagToDelete)) {
+        setSelectedTags(prev => prev.filter(t => t !== tagToDelete));
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Could not delete custom factor.');
+    } finally {
+      setDeletingTag(null);
+    }
+  };
 
   const handleDateChange = (newDate: string) => {
     setDate(newDate);
@@ -208,28 +256,72 @@ export default function SleepLogForm({ selectedDate, initialLog }: SleepLogFormP
       </div>
 
       {/* Things that happened */}
-      <div className="glass-card p-4 rounded-2xl border border-card-border space-y-3">
+      <div className="glass-card p-4 rounded-2xl border border-card-border space-y-4">
         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
           Things that happened yesterday
         </label>
         <div className="flex flex-wrap gap-2">
-          {DEFAULT_TAGS.map((tag) => {
+          {tagsList.map((tag) => {
             const isSelected = selectedTags.includes(tag);
             return (
               <button
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                className={`pl-3 pr-2 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 ${
                   isSelected
                     ? 'bg-indigo-600/35 border-indigo-500/80 text-white shadow-sm shadow-indigo-900/50'
                     : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:bg-slate-850 hover:text-slate-350'
                 }`}
               >
-                {tag}
+                <span>{tag}</span>
+                <span
+                  onClick={(e) => handleDeleteTag(tag, e)}
+                  className="p-0.5 rounded-full hover:bg-slate-800/80 text-slate-500 hover:text-red-400 transition-colors"
+                  title={`Delete "${tag}" option`}
+                >
+                  {deletingTag === tag ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <X className="w-3 h-3" />
+                  )}
+                </span>
               </button>
             );
           })}
+          {tagsList.length === 0 && (
+            <p className="text-xs text-slate-500 italic py-1">No factors defined. Add one below!</p>
+          )}
+        </div>
+
+        {/* Add custom tag input */}
+        <div className="pt-3.5 border-t border-slate-900/80 flex gap-2">
+          <input
+            type="text"
+            value={newTagInput}
+            onChange={(e) => setNewTagInput(e.target.value)}
+            placeholder="Add new custom factor (e.g. Tea, Rain, Hot bath)..."
+            className="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddTag(e);
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleAddTag}
+            disabled={isAddingTag || !newTagInput.trim()}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-550 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white text-xs font-semibold rounded-xl border border-indigo-500 transition-all flex items-center gap-1 shrink-0"
+          >
+            {isAddingTag ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            <span>Add</span>
+          </button>
         </div>
       </div>
 
