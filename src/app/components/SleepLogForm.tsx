@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SleepLog, WakeStatus } from '@/lib/types';
 import { saveSleepLog, addUserTag, deleteUserTag } from '@/lib/actions';
-import { Calendar, Clock, Star, Check, Loader2, AlertCircle, Plus, X } from 'lucide-react';
+import { Calendar, Clock, Star, Check, Loader2, AlertCircle, Plus, X, HelpCircle, BookOpen } from 'lucide-react';
 
 interface SleepLogFormProps {
   selectedDate: string;
@@ -25,6 +25,7 @@ export default function SleepLogForm({ selectedDate, initialLog, availableTags }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Custom tags list states
   const [tagsList, setTagsList] = useState<string[]>(availableTags);
@@ -227,10 +228,60 @@ export default function SleepLogForm({ selectedDate, initialLog, availableTags }
       </div>
 
       {/* Sleep Quality (Stars) */}
-      <div className="glass-card p-4 rounded-2xl border border-card-border space-y-3 text-center">
-        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block text-left">
-          Sleep Quality
-        </label>
+      <div className="glass-card p-4 rounded-2xl border border-card-border space-y-3 text-center animate-fadeIn">
+        <div className="flex justify-between items-center">
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block text-left">
+            Sleep Quality
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowGuide(!showGuide)}
+            className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors focus:outline-none cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>{showGuide ? 'Hide Guide' : 'Explain Scale'}</span>
+          </button>
+        </div>
+
+        {showGuide && (
+          <div className="text-left bg-slate-950/70 border border-indigo-500/15 rounded-xl p-3.5 space-y-3 text-[11px] leading-relaxed text-slate-300">
+            <div>
+              <h4 className="font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5" /> Rating Scale (1 - 5)
+              </h4>
+              <ul className="space-y-1.5">
+                <li>
+                  <strong className="text-slate-200">1 — Terrible:</strong> Fitful sleep, woke up exhausted, or barely slept at all.
+                </li>
+                <li>
+                  <strong className="text-slate-200">2 — Poor:</strong> Tossed and turned heavily, woke multiple times, felt unrefreshed.
+                </li>
+                <li>
+                  <strong className="text-slate-200">3 — Average:</strong> Adequate sleep with minor interruptions, felt moderately rested.
+                </li>
+                <li>
+                  <strong className="text-slate-200">4 — Good:</strong> Slept soundly with minimal/no wakeups, woke feeling refreshed.
+                </li>
+                <li>
+                  <strong className="text-slate-200">5 — Excellent:</strong> Highly restorative, deep uninterrupted sleep, feeling fully energized.
+                </li>
+              </ul>
+            </div>
+            <div className="pt-2 border-t border-slate-900/60">
+              <h4 className="font-semibold text-indigo-350 mb-1">How is sleep measured?</h4>
+              <p className="text-slate-400">
+                To identify what helps or hurts your sleep, we calculate a <strong className="text-slate-300">Combined Sleep Score</strong> (1-5) using:
+              </p>
+              <div className="my-1.5 p-2 bg-slate-900/65 border border-slate-850 rounded-lg text-center font-mono text-indigo-400 font-bold text-xs">
+                (Subjective Quality + Continuity) / 2
+              </div>
+              <p className="text-slate-400 leading-relaxed">
+                Continuity is based on night awakenings: <span className="text-slate-300">No interruptions</span> (5.0), <span className="text-slate-300">Once</span> (3.5), <span className="text-slate-300">Multiple</span> (2.0), or <span className="text-slate-350">Awake for ages</span> (1.0).
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-center gap-3 py-2">
           {[1, 2, 3, 4, 5].map((val) => {
             const active = sleepQuality !== null && val <= sleepQuality;

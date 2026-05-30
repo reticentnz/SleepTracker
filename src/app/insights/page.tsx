@@ -113,6 +113,77 @@ export default async function InsightsPage() {
         </div>
       </div>
 
+      {/* Collapsible Measurement Guide */}
+      <details className="group glass-card rounded-2xl border border-card-border overflow-hidden transition-all [&_summary::-webkit-details-marker]:hidden">
+        <summary className="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-slate-900/40 transition-colors">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-350 uppercase tracking-wider">
+            <TrendingUp className="w-3.5 h-3.5 text-indigo-405" />
+            <span>How Sleep Metrics Are Calculated</span>
+          </div>
+          <span className="text-slate-400 transition-transform duration-200 group-open:rotate-180">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </span>
+        </summary>
+        <div className="p-4 pt-0 border-t border-slate-900/60 text-xs text-slate-300 space-y-4 bg-slate-950/20 leading-relaxed">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-indigo-300 text-[11px] uppercase tracking-wider">
+                1. Subjective Quality Scale
+              </h4>
+              <p className="text-slate-400">
+                Your daily self-rating on a scale of 1 to 5:
+              </p>
+              <ul className="space-y-1.5 text-slate-350 pl-1">
+                <li><strong className="text-slate-200">5 (Excellent):</strong> Deep, restorative, uninterrupted sleep.</li>
+                <li><strong className="text-slate-200">4 (Good):</strong> Slept soundly with minimal disruptions.</li>
+                <li><strong className="text-slate-200">3 (Average):</strong> Decent sleep with moderate waking.</li>
+                <li><strong className="text-slate-200">2 (Poor):</strong> Restless, tossed & turned, felt unrefreshed.</li>
+                <li><strong className="text-slate-200">1 (Terrible):</strong> Fitful, bare minimum sleep, exhausted.</li>
+              </ul>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-semibold text-indigo-300 text-[11px] uppercase tracking-wider">
+                2. Combined Sleep Score
+              </h4>
+              <p className="text-slate-400">
+                To determine Helpers and Disruptors, we merge your subjective rating with your sleep continuity:
+              </p>
+              <div className="p-2 bg-slate-950/60 border border-slate-900 rounded-xl font-mono text-center text-indigo-400 font-semibold text-xs">
+                (Subjective Quality + Continuity) / 2
+              </div>
+              <p className="text-slate-400">
+                Continuity score maps to night awakenings:
+              </p>
+              <ul className="grid grid-cols-2 gap-1.5 text-slate-350 font-mono text-[10px] bg-slate-900/20 p-2 rounded-lg border border-slate-900/40">
+                <li>• No wakeups: <span className="text-indigo-350 font-bold">5.0</span></li>
+                <li>• Once: <span className="text-indigo-350 font-bold">3.5</span></li>
+                <li>• Multiple: <span className="text-indigo-350 font-bold">2.0</span></li>
+                <li>• Awake ages: <span className="text-indigo-350 font-bold">1.0</span></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="pt-3 border-t border-slate-900/60 text-slate-400">
+            <p>
+              💡 <strong className="text-slate-300">Helpers & Disruptors:</strong> Tagged habits associated with a combined score <strong className="text-emerald-400">&gt;= 4.0</strong> are categorized as Helpers. Those with a score <strong className="text-red-405">&lt;= 3.0</strong> are categorized as Disruptors.
+            </p>
+          </div>
+        </div>
+      </details>
+
       {/* Top Disruptors and Helpers (Only if we have entries) */}
       <div className="grid grid-cols-1 gap-4">
         {/* Helpers */}
