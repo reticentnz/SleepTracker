@@ -44,8 +44,12 @@ export default function SleepLogForm({ selectedDate, initialLog, availableTags }
     setIsAddingTag(true);
     setError(null);
     try {
-      await addUserTag(tagToAdd);
-      setTagsList(prev => [...prev, tagToAdd].sort());
+      const res = await addUserTag(tagToAdd);
+      if (res && res.tags) {
+        setTagsList(res.tags);
+      } else {
+        setTagsList(prev => [...prev, tagToAdd].sort());
+      }
       setNewTagInput('');
     } catch (err) {
       console.error(err);
@@ -61,8 +65,12 @@ export default function SleepLogForm({ selectedDate, initialLog, availableTags }
     setDeletingTag(tagToDelete);
     setError(null);
     try {
-      await deleteUserTag(tagToDelete);
-      setTagsList(prev => prev.filter(t => t !== tagToDelete));
+      const res = await deleteUserTag(tagToDelete);
+      if (res && res.tags) {
+        setTagsList(res.tags);
+      } else {
+        setTagsList(prev => prev.filter(t => t !== tagToDelete));
+      }
       if (selectedTags.includes(tagToDelete)) {
         setSelectedTags(prev => prev.filter(t => t !== tagToDelete));
       }

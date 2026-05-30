@@ -327,7 +327,7 @@ export async function getSleepInsights() {
 }
 
 /**
- * Fetch list of custom/default tags for the user
+ * Fetch list of custom/default tags for the user, sorted by usage in the last 14 days
  */
 export async function getUserTags(): Promise<string[]> {
   await ensureSchema();
@@ -335,10 +335,17 @@ export async function getUserTags(): Promise<string[]> {
 
   try {
     const rows = await sql`
-      SELECT tag
-      FROM user_tags
-      WHERE user_id = ${DEFAULT_USER_ID}
-      ORDER BY tag ASC
+      SELECT ut.tag, COALESCE(usage.cnt, 0) AS use_count
+      FROM user_tags ut
+      LEFT JOIN (
+        SELECT slt.tag, COUNT(*)::int AS cnt
+        FROM sleep_log_tags slt
+        JOIN sleep_logs sl ON slt.sleep_log_id = sl.id
+        WHERE sl.user_id = ${DEFAULT_USER_ID} AND sl.log_date >= CURRENT_DATE - 14
+        GROUP BY slt.tag
+      ) usage ON ut.tag = usage.tag
+      WHERE ut.user_id = ${DEFAULT_USER_ID}
+      ORDER BY use_count DESC, ut.tag ASC
     `;
     return rows.map(r => r.tag);
   } catch (error) {
@@ -348,7 +355,7 @@ export async function getUserTags(): Promise<string[]> {
 }
 
 /**
- * Add a new customized tag option
+ * Add a new customized tag option and return the updated tag list
  */
 export async function addUserTag(tag: string) {
   await ensureSchema();
@@ -366,7 +373,8 @@ export async function addUserTag(tag: string) {
       ON CONFLICT (user_id, tag) DO NOTHING
     `;
     revalidatePath('/');
-    return { success: true };
+    const updatedTags = await getUserTags();
+    return { success: true, tags: updatedTags };
   } catch (error) {
     console.error('Error adding user tag:', error);
     throw error;
@@ -374,7 +382,7 @@ export async function addUserTag(tag: string) {
 }
 
 /**
- * Delete a customized tag option
+ * Delete a customized tag option and return the updated tag list
  */
 export async function deleteUserTag(tag: string) {
   await ensureSchema();
@@ -386,7 +394,8 @@ export async function deleteUserTag(tag: string) {
       WHERE user_id = ${DEFAULT_USER_ID} AND tag = ${tag}
     `;
     revalidatePath('/');
-    return { success: true };
+    const updatedTags = await getUserTags();
+    return { success: true, tags: updatedTags };
   } catch (error) {
     console.error('Error deleting user tag:', error);
     throw error;
