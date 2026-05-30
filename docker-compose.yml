@@ -1,0 +1,11 @@
+services:
+  sleep-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sleep-tracker
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
