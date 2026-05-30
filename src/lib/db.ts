@@ -4,6 +4,14 @@ export const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 const databaseUrl = process.env.DATABASE_URL;
 
+if (databaseUrl) {
+  // Mask password for security logs
+  const maskedUrl = databaseUrl.replace(/:([^:@]+)@/, ':****@');
+  console.log(`[Database] DATABASE_URL is configured: ${maskedUrl}`);
+} else {
+  console.warn('[Database] WARNING: DATABASE_URL environment variable is NOT configured!');
+}
+
 // Retrieve the Neon SQL client, throwing a clear error if DATABASE_URL is missing.
 export const getDbClient = () => {
   if (!databaseUrl) {
