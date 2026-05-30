@@ -2,6 +2,8 @@ import { getSleepHistory } from '@/lib/actions';
 import HistoryList from './HistoryList';
 import SetupInstructions from '../components/SetupInstructions';
 
+export const dynamic = 'force-dynamic';
+
 export default async function HistoryPage() {
   const isDbConnected = !!process.env.DATABASE_URL;
 

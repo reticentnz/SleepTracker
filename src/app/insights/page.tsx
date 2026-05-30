@@ -3,6 +3,8 @@ import SetupInstructions from '../components/SetupInstructions';
 import { Star, TrendingUp, Activity, BarChart2, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function InsightsPage() {
   const isDbConnected = !!process.env.DATABASE_URL;
 
