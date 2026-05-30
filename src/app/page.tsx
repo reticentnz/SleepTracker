@@ -2,6 +2,8 @@ import { getSleepLog } from '@/lib/actions';
 import SleepLogForm from './components/SleepLogForm';
 import SetupInstructions from './components/SetupInstructions';
 
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   searchParams: Promise<{ date?: string }>;
 }
